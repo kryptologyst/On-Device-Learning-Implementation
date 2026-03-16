@@ -1,0 +1,90 @@
+# Device configurations for different edge targets
+device:
+  # Raspberry Pi 4B
+  raspberry_pi:
+    cpu_cores: 4
+    memory_mb: 4096
+    storage_gb: 32
+    gpu: "VideoCore VI"
+    os: "Raspberry Pi OS"
+    python_version: "3.10"
+    frameworks: ["tflite", "onnxruntime"]
+    
+  # NVIDIA Jetson Nano
+  jetson_nano:
+    cpu_cores: 4
+    memory_mb: 4096
+    storage_gb: 16
+    gpu: "Maxwell 128-core"
+    os: "Ubuntu 20.04"
+    python_version: "3.8"
+    frameworks: ["tensorrt", "tflite", "onnxruntime"]
+    
+  # Android device
+  android:
+    cpu_cores: 8
+    memory_mb: 6144
+    storage_gb: 128
+    gpu: "Adreno 640"
+    os: "Android 11+"
+    python_version: "3.9"
+    frameworks: ["tflite", "onnxruntime"]
+    
+  # iOS device
+  ios:
+    cpu_cores: 6
+    memory_mb: 4096
+    storage_gb: 64
+    gpu: "A14 Bionic"
+    os: "iOS 15+"
+    python_version: "3.9"
+    frameworks: ["coreml", "onnxruntime"]
+
+# Model configurations
+model:
+  # Base model architecture
+  architecture: "tiny_cnn"
+  input_shape: [1, 28, 28]  # MNIST-like
+  num_classes: 10
+  
+  # On-device learning specific
+  on_device_learning:
+    enabled: true
+    adaptation_method: "lora"  # lora, adapter, fine_tune
+    learning_rate: 0.001
+    batch_size: 1  # Edge constraint
+    max_samples_per_update: 100
+    update_frequency: 10  # samples
+    
+  # Compression settings
+  compression:
+    quantization:
+      enabled: true
+      method: "int8"  # int8, int4, dynamic
+      calibration_samples: 100
+    pruning:
+      enabled: false
+      sparsity: 0.5
+    distillation:
+      enabled: false
+      teacher_model: "resnet18"
+
+# Runtime configurations
+runtime:
+  # Inference settings
+  inference:
+    batch_size: 1
+    num_threads: 2
+    use_gpu: false  # Will be auto-detected
+    
+  # Memory management
+  memory:
+    max_cache_size_mb: 50
+    enable_memory_mapping: true
+    
+  # Performance monitoring
+  monitoring:
+    enable_profiling: true
+    log_latency: true
+    log_memory_usage: true
+    log_energy_consumption: false  # Requires hardware support

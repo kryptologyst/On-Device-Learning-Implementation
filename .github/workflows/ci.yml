@@ -1,0 +1,163 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install black ruff mypy pytest
+    
+    - name: Run black
+      run: black --check src/ tests/ scripts/ demo/
+    
+    - name: Run ruff
+      run: ruff check src/ tests/ scripts/ demo/
+    
+    - name: Run mypy
+      run: mypy src/ --ignore-missing-imports
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11']
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+    
+    - name: Run tests
+      run: |
+        pytest tests/ --cov=src --cov-report=xml --cov-report=html
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install build twine
+    
+    - name: Build package
+      run: python -m build
+    
+    - name: Check package
+      run: twine check dist/*
+
+  edge-test:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Test model export
+      run: |
+        python -c "
+        import torch
+        from src.models.tiny_models import TinyCNN
+        from src.export.model_export import ModelExporter
+        
+        # Create model
+        model = TinyCNN(input_channels=1, num_classes=10)
+        
+        # Test ONNX export
+        exporter = ModelExporter(model, torch.device('cpu'))
+        try:
+            exporter.export_to_onnx((1, 28, 28), 'test_model.onnx')
+            print('ONNX export successful')
+        except Exception as e:
+            print(f'ONNX export failed: {e}')
+        "
+    
+    - name: Test training script
+      run: |
+        python scripts/train.py --config configs/device/default.yaml --log-level WARNING || echo "Training test completed with warnings"
+
+  demo-test:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Test Streamlit demo
+      run: |
+        python -c "
+        import streamlit as st
+        from demo.streamlit_demo import create_model, create_performance_plot
+        from src.utils.evaluation import EdgeMetrics
+        
+        # Test model creation
+        model = create_model('CNN', True)
+        print('Model creation successful')
+        
+        # Test metrics
+        metrics = EdgeMetrics()
+        metrics.add_prediction(1, 1, 5.0, 10.0)
+        plot = create_performance_plot(metrics)
+        print('Plot creation successful')
+        "

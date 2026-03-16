@@ -1,0 +1,68 @@
+# Quantization configurations
+quantization:
+  # Post-training quantization (PTQ)
+  ptq:
+    enabled: true
+    method: "int8"
+    calibration_dataset_size: 100
+    calibration_method: "minmax"  # minmax, percentile, entropy
+    
+  # Quantization-aware training (QAT)
+  qat:
+    enabled: false
+    epochs: 10
+    learning_rate: 0.0001
+    quantize_activations: true
+    quantize_weights: true
+    
+  # Per-channel vs per-tensor
+  granularity: "per_tensor"  # per_tensor, per_channel
+  
+  # Bit precision
+  weight_bits: 8
+  activation_bits: 8
+  
+  # Calibration settings
+  calibration:
+    num_samples: 100
+    batch_size: 1
+    method: "minmax"  # minmax, percentile, entropy
+    percentile: 99.99
+
+# Pruning configurations
+pruning:
+  # Magnitude-based pruning
+  magnitude:
+    enabled: false
+    sparsity: 0.5
+    structured: false
+    
+  # Structured pruning
+  structured:
+    enabled: false
+    sparsity: 0.3
+    granularity: "channel"  # channel, filter, layer
+    
+  # Iterative pruning
+  iterative:
+    enabled: false
+    steps: 5
+    final_sparsity: 0.8
+    warmup_epochs: 2
+
+# Distillation configurations
+distillation:
+  enabled: false
+  teacher_model: "resnet18"
+  student_model: "tiny_cnn"
+  temperature: 4.0
+  alpha: 0.7  # Weight for distillation loss
+  beta: 0.3   # Weight for task loss
+  
+  # Knowledge transfer methods
+  transfer_method: "logits"  # logits, features, attention
+  
+  # Training settings
+  epochs: 20
+  learning_rate: 0.001
+  batch_size: 32
